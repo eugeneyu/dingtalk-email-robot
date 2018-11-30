@@ -9,6 +9,8 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.util.ResourceUtils;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -134,7 +136,7 @@ public class DemoController {
 	String sendMail(@RequestBody Map<String, Object> payload) {
 		// 如果是除杭州region外的其它region（如新加坡、澳洲Region），需要将下面的"cn-hangzhou"替换为"ap-southeast-1"、或"ap-southeast-2"。
         IClientProfile profile = DefaultProfile.getProfile("cn-hangzhou", accesskeyid, accesskeysecret);
-    // 如果是除杭州region外的其它region（如新加坡region）， 需要做如下处理
+        // 如果是除杭州region外的其它region（如新加坡region）， 需要做如下处理
         //try {
         //DefaultProfile.addEndpoint("dm.ap-southeast-1.aliyuncs.com", "ap-southeast-1", "Dm",  "dm.ap-southeast-1.aliyuncs.com");
         //} catch (ClientException e) {
@@ -170,6 +172,8 @@ public class DemoController {
             Date date = Calendar.getInstance().getTime();
             DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd");
             String strDate = dateFormat.format(date);
+            
+            
             
             request.setSubject("互联网公共服务 - SA(北京) - 晨会纪要 - " + strDate);
             request.setHtmlBody(content);
@@ -217,6 +221,37 @@ public class DemoController {
     	ConsumerThread thread = (ConsumerThread) ctx.getBean("consumerThread");
     	thread.setName("Thread 1");
     	thread.start();
+		return "OK";
+	}
+	
+	@RequestMapping("/test")
+	String test(@RequestBody Map<String, Object> payload) {
+		
+		String content = "北京，  \n" + 
+        		"1、搜狗CDN切量推动\n" + 
+        		"2. 唔哩CDN测试支持\n" + 
+        		"3. 聚力转码测试支持\n" + 
+        		"4. A站视频转封装跟进\n" + 
+        		"5. 掌阅大数据和文转音需求跟进";
+        
+        System.out.println("content is:"+content);
+        
+        Pattern pattern = Pattern.compile("(.*?)[，。、\\s]");
+        Matcher matcher = pattern.matcher(content);
+        if (matcher.find())
+        {
+            System.out.println("location is:"+matcher.group(1));
+        }
+        
+        pattern = Pattern.compile("(1[、。\\s\\.]\\s*.*)");
+        matcher = pattern.matcher(content);
+        if (matcher.find()) {
+        	
+        	String line1 = matcher.group(1);
+        	String lineOther = content.substring(content.indexOf(line1), content.length());
+        	System.out.println("text is:\n"+line1+lineOther);
+        }
+        
 		return "OK";
 	}
 }
