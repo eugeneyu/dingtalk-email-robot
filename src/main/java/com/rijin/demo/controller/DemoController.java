@@ -9,8 +9,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.springframework.util.ResourceUtils;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -151,7 +149,7 @@ public class DemoController {
             request.setAddressType(1);
             //request.setTagName("控制台创建的标签");
             request.setReplyToAddress(true);
-            request.setToAddress("youzhi.yyz@alibaba-inc.com");
+            request.setToAddress("youzhi.yyz@alibaba-inc.com,muyao.cys@alibaba-inc.com");
             //可以给多个收件人发送邮件，收件人之间用逗号分开，批量发信建议使用BatchSendMailRequest方式
             //request.setToAddress("邮箱1,邮箱2");
             
@@ -163,14 +161,13 @@ public class DemoController {
             	System.out.println(e.getMessage());
             }
             
-            content = "aa {zq-working} bb {zq-location} cc {zq-plan}";
             
             content = content.replace("{zq-working}", "Y");
             content = content.replace("{zq-location}", "北京");
-            content = content.replace("{zq-plan}", "哈哈哈");
+            content = content.replace("{zq-plan}", "测试");
             
             Date date = Calendar.getInstance().getTime();
-            DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd");
+            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
             String strDate = dateFormat.format(date);
             
             
@@ -227,30 +224,9 @@ public class DemoController {
 	@RequestMapping("/test")
 	String test(@RequestBody Map<String, Object> payload) {
 		
-		String content = "北京，  \n" + 
-        		"1、搜狗CDN切量推动\n" + 
-        		"2. 唔哩CDN测试支持\n" + 
-        		"3. 聚力转码测试支持\n" + 
-        		"4. A站视频转封装跟进\n" + 
-        		"5. 掌阅大数据和文转音需求跟进";
-        
-        System.out.println("content is:"+content);
-        
-        Pattern pattern = Pattern.compile("(.*?)[，。、\\s]");
-        Matcher matcher = pattern.matcher(content);
-        if (matcher.find())
-        {
-            System.out.println("location is:"+matcher.group(1));
-        }
-        
-        pattern = Pattern.compile("(1[、。\\s\\.]\\s*.*)");
-        matcher = pattern.matcher(content);
-        if (matcher.find()) {
-        	
-        	String line1 = matcher.group(1);
-        	String lineOther = content.substring(content.indexOf(line1), content.length());
-        	System.out.println("text is:\n"+line1+lineOther);
-        }
+		String content = "1. 第一行\n2. 第二行\n3. 第三行";
+		content = content.replace("\n", "<br>");
+		System.out.println(content);
         
 		return "OK";
 	}

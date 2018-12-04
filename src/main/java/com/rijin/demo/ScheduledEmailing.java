@@ -1,11 +1,10 @@
 package com.rijin.demo;
 
-import java.io.File;
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.text.DateFormat;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -13,10 +12,12 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ResourceUtils;
 
 import com.aliyun.openservices.ons.api.Action;
 import com.aliyun.openservices.ons.api.ConsumeContext;
@@ -49,13 +50,17 @@ public class ScheduledEmailing {
 	@Value("${accesskey.secret}")
 	private String accesskeysecret;
 	
+	@Autowired
+	private ResourceLoader resourceLoader;
+	
 	Map <String, DailyPlan> mapDailyPlan;
+
 	
 	public ScheduledEmailing () {
 		mapDailyPlan = new HashMap <String, DailyPlan> ();
 	}
 	
-	@Scheduled(cron = "0 06 * * * *")
+	@Scheduled(cron = "0 0 9 * * *")
     public void consumeMessageAndEmailing() {
 		
 		Properties properties = new Properties();
@@ -79,11 +84,10 @@ public class ScheduledEmailing {
             }
         });
         
-    	
         consumer.start();
         
     	try {
-			Thread.sleep(10000);
+			Thread.sleep(300000);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -96,6 +100,7 @@ public class ScheduledEmailing {
 		ObjectMapper mapper = new ObjectMapper();
 	    JsonNode jsonObj;
 		try {
+			message = message.replace("\n", "\\n").replace("\r", "\\n");
 			jsonObj = mapper.readTree(message);
 			JsonNode jsonNodeName = jsonObj.get("Name");
 			JsonNode jsonNodePlan = jsonObj.get("Text");
@@ -106,7 +111,8 @@ public class ScheduledEmailing {
 			
 			String text = jsonNodePlan.textValue();
 			
-			if (text.contains("休假")||text.contains("请假")) {
+			if ((text.contains("休假")||text.contains("请假"))
+					&& !text.contains("晨会请假")) {
 				plan.setWorking("N");
 				plan.setPlan(text);
 				return;
@@ -125,11 +131,11 @@ public class ScheduledEmailing {
 	        	String line1 = matcher.group(1);
 	        	String lineOther = text.substring(text.indexOf(line1)+line1.length(), text.length());
 	        	String planText = line1+lineOther;
-	        	planText.replace("\\n", "<br>");
+	        	planText = planText.replace("\n", "<br>");
 	        	plan.setPlan(planText);
 	        }
 						
-						
+	        System.out.println("processMessage() - plan - "+plan.getName()+","+plan.getLocation()+","+plan.getPlan()+","+plan.getWorking());			
 			mapDailyPlan.put(jsonNodeName.textValue(), plan);
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -137,6 +143,11 @@ public class ScheduledEmailing {
 	}
 	
 	public void sendMail() {
+		
+		if (mapDailyPlan.isEmpty()) {
+			return;
+		}
+		
 		// 如果是除杭州region外的其它region（如新加坡、澳洲Region），需要将下面的"cn-hangzhou"替换为"ap-southeast-1"、或"ap-southeast-2"。
         IClientProfile profile = DefaultProfile.getProfile("cn-hangzhou", accesskeyid, accesskeysecret);
         // 如果是除杭州region外的其它region（如新加坡region）， 需要做如下处理
@@ -160,33 +171,64 @@ public class ScheduledEmailing {
             
             String content =  "";
             try {
-            	File file = ResourceUtils.getFile("classpath:mail.tpl");
-            	content = new String(Files.readAllBytes(file.toPath()));
+            	Resource resource = resourceLoader.getResource("classpath:mail.tpl");
+                InputStream fileStream = resource.getInputStream(); 
+                
+                BufferedReader reader = new BufferedReader(new InputStreamReader(fileStream));
+                StringBuilder out = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    out.append(line + "\n");   
+                }
+
+                content = out.toString();
             } catch (IOException e) {
             	System.out.println(e.getMessage());
             }
             
-            //content = "aa {zq-working} bb {zq-location} cc {zq-plan}";
             
             for (String name: mapDailyPlan.keySet()) {
             	DailyPlan plan = mapDailyPlan.get(name);
-            	 if (name.contains("日进")) {
+            	 if (name.contains("日进")) { 
+            		 System.out.println("sendMail() - plan - "+plan.getName()+","+plan.getLocation()+","+plan.getPlan()+","+plan.getWorking());
+            		 System.out.println("sendMail() - content - before: "+content);
             		 content = content.replace("{yyz-working}", plan.getWorking());
                      content = content.replace("{yyz-location}", plan.getLocation());
                      content = content.replace("{yyz-plan}", plan.getPlan());
+                     System.out.println("sendMail() - content - after: "+content);
+            	 } else if (name.contains("云福")) {
+            		 content = content.replace("{zq-working}", plan.getWorking());
+                     content = content.replace("{zq-location}", plan.getLocation());
+                     content = content.replace("{zq-plan}", plan.getPlan());
+            	 } else if (name.contains("万磊")) {
+            		 content = content.replace("{wl-working}", plan.getWorking());
+                     content = content.replace("{wl-location}", plan.getLocation());
+                     content = content.replace("{wl-plan}", plan.getPlan());
+            	 } else if (name.contains("孙刚")) {
+            		 content = content.replace("{sg-working}", plan.getWorking());
+                     content = content.replace("{sg-location}", plan.getLocation());
+                     content = content.replace("{sg-plan}", plan.getPlan());
+            	 } else if (name.contains("木百")) {
+            		 content = content.replace("{wby-working}", plan.getWorking());
+                     content = content.replace("{wby-location}", plan.getLocation());
+                     content = content.replace("{wby-plan}", plan.getPlan());
+            	 } else if (name.contains("韩虎")) {
+            		 content = content.replace("{hh-working}", plan.getWorking());
+                     content = content.replace("{hh-location}", plan.getLocation());
+                     content = content.replace("{hh-plan}", plan.getPlan());
+            	 } else if (name.contains("耿纯")) {
+            		 content = content.replace("{jzh-working}", plan.getWorking());
+                     content = content.replace("{jzh-location}", plan.getLocation());
+                     content = content.replace("{jzh-plan}", plan.getPlan());
             	 }
             }
             
-            content = content.replace("{zq-working}", "Y");
-            content = content.replace("{zq-location}", "北京");
-            content = content.replace("{zq-plan}", "哈哈哈");
-            
-            
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
         	Date date = new Date();
-        	Date date1 = Calendar.getInstance().getTime();
         	
         	content = content.replace("{email-date}", formatter.format(date));
+        	
+        	//System.out.println("content is:"+content);
             
             request.setSubject("互联网公共服务 - SA(北京) - 晨会纪要 - " + formatter.format(date));
             request.setHtmlBody(content);
